@@ -319,7 +319,7 @@ function serializeVoiceConfig(config: VoiceApiConfig): Record<string, unknown> {
     provider: config.provider,
     model: config.model,
     sttModel: config.sttModel,
-    defaultVoice: config.defaultVoice,
+    defaultVoice: config.provider === "fish_audio" ? config.fishAudioReferenceId : config.defaultVoice,
     languageBoost: config.languageBoost,
     enableTTS: config.enableTTS,
     enableSTT: config.enableSTT,
@@ -1019,13 +1019,13 @@ export async function synthesizeCustomAppSpeech(app: InstalledCustomApp, record:
   const overrideVoice = cleanText(record.voiceId ?? record.voice, 160);
   const voiceConfig = overrideVoice ? { ...config, defaultVoice: overrideVoice } : config;
   const emotion = cleanText(record.emotion, 30) || undefined;
-  const blob = await synthesizeSpeech(text, voiceConfig, { emotion });
+  const blob = await synthesizeSpeech(text, voiceConfig, { emotion, voiceId: overrideVoice || undefined });
   if (!blob) throw new Error("语音合成未返回音频。");
   return {
     ok: true,
     configId: config.id,
     provider: config.provider,
-    voiceId: voiceConfig.defaultVoice,
+    voiceId: overrideVoice || (config.provider === "fish_audio" ? config.fishAudioReferenceId : config.defaultVoice),
     mimeType: blob.type || "audio/mpeg",
     size: blob.size,
     dataUrl: await blobToDataUrl(blob),

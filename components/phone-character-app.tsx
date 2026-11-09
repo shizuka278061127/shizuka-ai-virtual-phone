@@ -1754,6 +1754,7 @@ function CharArchiveView({
   const [briefPersona, setBriefPersona] = useState(char.briefPersona || "");
   const [briefBusy, setBriefBusy] = useState(false);
   const [briefError, setBriefError] = useState("");
+  const [voiceId, setVoiceId] = useState(char.voiceId || "");
   const [timeZone, setTimeZone] = useState(char.timeZone || "");
   const [tags, setTags] = useState<string[]>(char.tags || []);
   const [tagInput, setTagInput] = useState("");
@@ -1810,6 +1811,7 @@ function CharArchiveView({
     if (persona !== (char.persona || "")) return true;
     if (personality !== (char.personality || "")) return true;
     if (briefPersona !== (char.briefPersona || "")) return true;
+    if (voiceId !== (char.voiceId || "")) return true;
     if (timeZone !== (char.timeZone || "")) return true;
     if (avatar !== (char.avatar || null)) return true;
     const origTags = char.tags || [];
@@ -1832,6 +1834,7 @@ function CharArchiveView({
       setPersonality(char.personality || "");
       setBriefPersona(char.briefPersona || "");
       setBriefError("");
+      setVoiceId(char.voiceId || "");
       setTimeZone(char.timeZone || "");
       setTimeZoneSearch(char.timeZone || "");
       setShowTimeZonePicker(false);
@@ -1876,6 +1879,7 @@ function CharArchiveView({
         briefPersonaUpdatedAt: trimmedBrief
           ? (trimmedBrief !== (char.briefPersona || "").trim() ? new Date().toISOString() : char.briefPersonaUpdatedAt)
           : undefined,
+        voiceId: voiceId.trim() || undefined,
         timeZone: normalizedTimeZone,
         tags,
         avatar: avatar ?? null
@@ -2128,6 +2132,13 @@ function CharArchiveView({
             )}
           </div>
 
+          {(isEditing || voiceId.trim()) && (
+            <div className="char-log-entry mb-4 border-t border-dashed border-[#999] pt-3">
+              <label className="char-log-entry-header" htmlFor="character-voice-id">角色专属音色 ID / Reference ID</label>
+              {isEditing ? <input id="character-voice-id" className="wt-paper-input" value={voiceId} onChange={e => setVoiceId(e.target.value)} placeholder="留空使用绑定语音方案的默认音色" /> : <p className="char-archive-p break-all">{voiceId}</p>}
+              <p className="menu-desc">使用 Fish Audio 时填写 Reference ID；切换渠道后请填写对应渠道的音色 ID。</p>
+            </div>
+          )}
           {/* Personality — shown when editing or when has content */}
           {(isEditing || personality.trim()) && (
             <div className="char-log-entry mb-4 border-t border-dashed border-[#999] pt-3">

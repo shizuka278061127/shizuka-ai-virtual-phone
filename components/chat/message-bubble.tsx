@@ -2159,6 +2159,8 @@ function XiaohongshuShareBubble({ msg }: { msg: ChatMessage }) {
 function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslationExpanded = false }: { msg: ChatMessage; characterId?: string; onUpdate?: (m: ChatMessage) => void; defaultTranslationExpanded?: boolean }) {
     const [playing, setPlaying] = useState(false);
     const [synthesizing, setSynthesizing] = useState(false);
+    const [synthesisError, setSynthesisError] = useState("");
+    const [retry, setRetry] = useState(0);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const text = msg.mediaData?.label || "语音消息";
     const bilingual = splitBilingualText(text);
@@ -2172,6 +2174,7 @@ function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslationExpa
         if ((msg.mediaUrl && !needsResynthesis) || msg.role === "user" || synthesizing) return;
         if (!characterId) return;
         let cancelled = false;
+        setSynthesisError("");
         setSynthesizing(true);
         (async () => {
             try {
@@ -2192,11 +2195,16 @@ function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslationExpa
                     setSynthesizing(false);
                 };
                 reader.readAsDataURL(blob);
-            } catch { if (!cancelled) setSynthesizing(false); }
+            } catch (error) {
+                if (!cancelled) {
+                    setSynthesisError(error instanceof Error ? error.message : "语音合成失败，请检查语音配置");
+                    setSynthesizing(false);
+                }
+            }
         })();
         return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [msg.id, msg.mediaUrl, msg.mediaData, characterId, needsResynthesis, speechText]);
+    }, [msg.id, msg.mediaUrl, msg.mediaData, characterId, needsResynthesis, speechText, retry]);
 
     const handlePlay = () => {
         if (synthesizing || needsResynthesis) return;
@@ -2236,6 +2244,7 @@ function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslationExpa
     });
 
     return (
+        <>
         <div className="voice-msg-bubble" onClick={handlePlay}
             style={{ minWidth: `${Math.min(60 + duration * 8, 220)}px` }}
         >
@@ -2261,5 +2270,7 @@ function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslationExpa
             </div>
             <span className="voice-msg-dur">{duration}&quot;</span>
         </div>
+        {synthesisError && <button type="button" className="menu-desc text-red-600 text-left" onClick={() => setRetry(value => value + 1)}>{synthesisError}（点击重试）</button>}
+        </>
     );
 }

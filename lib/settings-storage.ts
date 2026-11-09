@@ -620,7 +620,8 @@ export function loadVoiceConfigs(): VoiceApiConfig[] {
     try {
         const raw = kvGet(VOICE_CONFIGS_KEY);
         if (!raw) return [];
-        return JSON.parse(raw) as VoiceApiConfig[];
+        const configs = JSON.parse(raw) as VoiceApiConfig[];
+        return configs.map(config => ({ ...config, provider: !config.provider || config.provider === "minimax" ? "Minimax" : config.provider }));
     } catch {
         return [];
     }

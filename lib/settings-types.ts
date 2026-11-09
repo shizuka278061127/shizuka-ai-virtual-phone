@@ -125,6 +125,8 @@ export type ApiConfig = {
     preventEmptyGenerateRambling?: boolean;
 };
 
+export type TtsProvider = "Minimax" | "OpenAI" | "fish_audio";
+
 // --- VoiceApiConfig (migrated from voice-settings.tsx) ---
 export type VoiceApiConfig = {
     id: string;
@@ -134,6 +136,11 @@ export type VoiceApiConfig = {
     baseUrl?: string;
     region?: string;
     model?: string;
+    nonFishProvider?: "Minimax" | "OpenAI"; // 保留切换前的通用配置所属渠道
+    fishAudioApiKey?: string;
+    fishAudioBaseUrl?: string;
+    fishAudioReferenceId?: string;
+    fishAudioModel?: string;
     sttModel?: string;
     defaultVoice: string;
     languageBoost?: string;

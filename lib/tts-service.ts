@@ -3,6 +3,9 @@
 import type { VoiceApiConfig, ContentAppId } from "./settings-types";
 import { loadVoiceConfigs, loadBindingConfig, resolveBinding } from "./settings-storage";
 
+import { loadCharacters } from "./character-storage";
+import { cleanTtsText } from "./tts-text";
+
 export type VoiceApiConfigResolved = VoiceApiConfig;
 
 /**
@@ -15,7 +18,13 @@ export function resolveVoiceConfig(characterId: string, appId?: ContentAppId): V
     if (!slot.voiceConfigId) return null;
 
     const configs = loadVoiceConfigs();
-    return configs.find(c => c.id === slot.voiceConfigId) || null;
+    const config = configs.find(c => c.id === slot.voiceConfigId);
+    if (!config) return null;
+    const voiceId = loadCharacters().find(c => c.id === characterId)?.voiceId?.trim();
+    if (!voiceId) return config;
+    return config.provider === "fish_audio"
+        ? { ...config, fishAudioReferenceId: voiceId }
+        : { ...config, defaultVoice: voiceId };
 }
 
 /**
@@ -25,15 +34,20 @@ export function resolveVoiceConfig(characterId: string, appId?: ContentAppId): V
  * Supported providers:
  * - Minimax: REST API → hex-encoded mp3
  * - OpenAI: REST API → binary audio blob
+ * - Fish Audio: same-origin server proxy → binary mp3
  */
 export async function synthesizeSpeech(
     text: string,
     voiceConfig: VoiceApiConfig,
-    options?: { emotion?: string },
+    options?: { emotion?: string; voiceId?: string },
 ): Promise<Blob | null> {
-    if (!text.trim()) return null;
+    text = cleanTtsText(text);
+    if (!text) return null;
 
-    const provider = voiceConfig.provider;
+    const provider = voiceConfig.provider || "Minimax";
+    if (provider === "fish_audio") {
+        return synthesizeFishAudio(text, voiceConfig, options?.voiceId);
+    }
 
     if (provider === "Minimax") {
         return synthesizeMinimax(text, voiceConfig, options?.emotion);
@@ -128,6 +142,26 @@ async function synthesizeMinimax(text: string, config: VoiceApiConfig, emotion?:
     }
 
     throw new Error(data.base_resp?.status_msg || "Minimax 未返回音频数据");
+}
+
+// ── Fish Audio TTS (same-origin server proxy) ──────────
+async function synthesizeFishAudio(text: string, config: VoiceApiConfig, voiceId?: string): Promise<Blob> {
+    const apiKey = config.fishAudioApiKey?.trim();
+    const referenceId = voiceId?.trim() || config.fishAudioReferenceId?.trim();
+    if (!apiKey) throw new Error("Fish Audio API Key 未配置");
+    if (!referenceId) throw new Error("请填写 Fish Audio 默认音色 ID 或角色专属音色 ID");
+    const response = await fetchWithTimeout("/api/tts/fish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, apiKey, referenceId, baseUrl: config.fishAudioBaseUrl, model: config.fishAudioModel }),
+    });
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Fish Audio 请求失败 (${response.status})`);
+    }
+    const blob = await response.blob();
+    if (!blob.size) throw new Error("Fish Audio 未返回音频数据");
+    return new Blob([await blob.arrayBuffer()], { type: "audio/mpeg" });
 }
 
 // ── OpenAI TTS ──────────────────────────────────────
